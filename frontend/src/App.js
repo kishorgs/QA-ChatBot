@@ -1,19 +1,26 @@
-import React, { useRef, useState } from "react";
+// Full enhanced version of your PDF Q&A chatbot
+
+import React, { useRef, useState, useEffect } from "react";
 import axios from "axios";
+import { FaRocket, FaCloudUploadAlt, FaUser, FaRobot } from "react-icons/fa";
 
 function App() {
   const fileInputRef = useRef(null);
+  const chatEndRef = useRef(null);
   const [pdfUploaded, setPdfUploaded] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const formData = new FormData();
     formData.append("file", file);
+    setLoading(true);
     await axios.post("http://localhost:8000/upload", formData);
     setPdfUploaded(true);
+    setLoading(false);
     alert("✅ PDF uploaded and indexed!");
   };
 
@@ -25,24 +32,31 @@ function App() {
     const userMessage = { role: "user", text: question };
     setMessages((prev) => [...prev, userMessage]);
     setQuestion("");
+    setLoading(true);
 
     const res = await axios.post("http://localhost:8000/ask", formData);
     const botMessage = { role: "bot", text: res.data.answer };
     setMessages((prev) => [...prev, botMessage]);
+    setLoading(false);
   };
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>📘 PDF Q&A Chat Assistant</h1>
+      <h1 style={styles.title}>🚀 ThinkPDF</h1>
 
       <div style={styles.card}>
         {!pdfUploaded ? (
-          <div onClick={() => fileInputRef.current.click()} style={styles.uploadBox}>
-            <div style={styles.icon}>⬆️</div>
-            <p style={styles.uploadText}>Drag and Drop files to upload</p>
-            <p style={styles.orText}>or</p>
-            <button style={styles.browseBtn}>📁 Browse</button>
-            <p style={styles.supported}>Supported files: .PDF</p>
+          <div
+            style={styles.uploadBox}
+            onClick={() => fileInputRef.current.click()}
+          >
+            <FaCloudUploadAlt size={80} color="#3b82f6" style={{ marginBottom: 10 }} />
+            <p style={styles.uploadTitle}>Upload and Ask</p>
+            <p style={styles.uploadSubText}>Drag & drop your PDF or click here</p>
             <input
               type="file"
               accept=".pdf"
@@ -54,18 +68,42 @@ function App() {
         ) : (
           <div style={styles.chatContainer}>
             <div style={styles.chatBox}>
-              {messages.map((msg, index) => (
-                <div
-                  key={index}
-                  style={{
-                    ...styles.message,
-                    alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                    backgroundColor: msg.role === "user" ? "#dbeafe" : "#f1f5f9",
-                  }}
-                >
-                  {msg.text}
+              {messages.length === 0 ? (
+                <div style={styles.emptyState}>
+                  <FaRobot size={60} color="#9333ea" style={{ marginBottom: 10 }} />
+                  <p style={styles.emptyTitle}>Ask something from AI</p>
+                  <ul style={styles.sampleQuestions}>
+                    <li style={styles.sampleItem}>🎓 In which college Kishor studied?</li>
+                    <li style={styles.sampleItem}>💼 What is the profession of Kishor?</li>
+                    <li style={styles.sampleItem}>🛠️ What are the technical skills of Kishor?</li>
+                  </ul>
                 </div>
-              ))}
+              ) : (
+                messages.map((msg, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...styles.message,
+                      alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                      background: msg.role === "user"
+                        ? "linear-gradient(to right, #38bdf8, #60a5fa)"
+                        : "linear-gradient(to right, #c084fc, #a78bfa)",
+                      borderBottomRightRadius: msg.role === "user" ? 0 : styles.message.borderRadius,
+                      borderBottomLeftRadius: msg.role === "bot" ? 0 : styles.message.borderRadius,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {msg.role === "user" ? <FaUser /> : <FaRobot />} <span>{msg.text}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+              {loading && (
+                <div style={{ ...styles.message, backgroundColor: "#d1d7e0", color: "#1e293b" }}>
+                  <em>Bot is thinking...</em>
+                </div>
+              )}
+              <div ref={chatEndRef} />
             </div>
 
             <div style={styles.inputArea}>
@@ -73,10 +111,12 @@ function App() {
                 type="text"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                placeholder="Type your question..."
+                placeholder="Ask something from the PDF..."
                 style={styles.input}
               />
-              <button onClick={handleAsk} style={styles.askBtn}>Send</button>
+              <button onClick={handleAsk} style={styles.askBtn}>
+                Send <FaRocket style={{ marginLeft: 6 }} />
+              </button>
             </div>
           </div>
         )}
@@ -85,99 +125,86 @@ function App() {
   );
 }
 
-// 🔧 Styling
 const styles = {
   container: {
-    minHeight: "100vh",
-    background: "linear-gradient(to right, #e0f2fe, #f0fdf4)",
+    height: "100vh",
+    width: "100vw",
+    margin: 0,
+    padding: 0,
+    background: "linear-gradient(135deg, #1e3a8a, #64748b, #38bdf8)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    padding: 40,
+    justifyContent: "center",
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "bold",
-    color: "#1d4ed8",
+    color: "#fff",
     marginBottom: 30,
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    boxShadow: "0 8px 30px rgba(0,0,0,0.1)",
-    width: "100%",
-    maxWidth: 900,
-    minHeight: 500,
-    padding: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.75)",
+    backdropFilter: "blur(12px)",
+    borderRadius: 24,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+    width: "90%",
+    maxWidth: 720,
+    height: 520,
+    padding: 32,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
   },
   uploadBox: {
-    width: "100%",
+    width: "80%",
     height: "80%",
-    border: "2px dashed #94a3b8",
+    border: "3px dashed #94a3b8",
     borderRadius: 16,
+    backgroundColor: "#f1f5f9",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
     cursor: "pointer",
-    transition: "border 0.3s",
-    padding: 20,
     textAlign: "center",
   },
-  icon: {
-    fontSize: 40,
-    marginBottom: 12,
-  },
-  uploadText: {
-    fontSize: 18,
-    fontWeight: 500,
-    color: "#475569",
-  },
-  orText: {
-    color: "#94a3b8",
-    margin: "10px 0",
-  },
-  browseBtn: {
-    padding: "8px 20px",
-    backgroundColor: "#3b82f6",
-    color: "white",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
+  uploadTitle: {
+    fontSize: 22,
     fontWeight: 600,
-    boxShadow: "0 3px 8px rgba(0,0,0,0.15)",
+    color: "#1e3a8a",
+    marginBottom: 5,
   },
-  supported: {
-    fontSize: 12,
-    marginTop: 8,
-    color: "#64748b",
+  uploadSubText: {
+    fontSize: 14,
+    color: "#475569",
   },
   chatContainer: {
     width: "100%",
+    height: "100%",
     display: "flex",
     flexDirection: "column",
-    height: "100%",
   },
   chatBox: {
     flex: 1,
-    maxHeight: "340px",
     overflowY: "auto",
-    padding: "12px",
+    padding: 12,
     backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 14,
+    marginBottom: 10,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
   },
   message: {
     maxWidth: "70%",
-    marginBottom: 10,
     padding: "10px 14px",
-    borderRadius: 12,
+    borderRadius: 18,
     fontSize: 15,
-    color: "#111827",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+    color: "#fff",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    lineHeight: "1.5",
+    wordBreak: "break-word",
   },
   inputArea: {
     display: "flex",
@@ -199,7 +226,39 @@ const styles = {
     borderRadius: 10,
     fontWeight: 600,
     cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
     boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
+  },
+  emptyState: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    flex: 1,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#334155",
+    marginBottom: 10,
+  },
+  sampleQuestions: {
+    listStyle: "none",
+    padding: 0,
+    margin: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  sampleItem: {
+    fontSize: 14,
+    backgroundColor: "#e0e7ff",
+    padding: "8px 14px",
+    borderRadius: 12,
+    color: "#1e293b",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
   },
 };
 
